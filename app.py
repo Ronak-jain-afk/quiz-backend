@@ -3,9 +3,21 @@ import random
 import string
 from flask_cors import CORS
 import os
+import firebase_admin
+import json
+from firebase_admin import credentials, firestore
 
 app = Flask(__name__)
 CORS(app)
+
+# Initialize Firebase app (use your downloaded service account key)
+firebase_config = os.getenv("FIREBASE_CREDENTIALS")
+if not firebase_config:
+    raise Exception("FIREBASE_CREDENTIALS not set in environment variables")
+
+cred = credentials.Certificate(json.loads(firebase_config))
+firebase_admin.initialize_app(cred)
+db = firestore.client()
 
 # Question datasets with topic field added
 python_questions = [
@@ -171,13 +183,14 @@ def create_room():
     # Filter questions by topic and randomly select
     filtered = [q for q in questions if q.get("topic") == topic]
     selected_questions = random.sample(filtered, min(question_count, len(filtered)))
-    rooms[room_code] = {
+    room_data = {
         "players": {},
         "started": False,
         "topic": topic,
         "question_count": question_count,
         "selected_questions": selected_questions
     }
+    db.collection("rooms").document(room_code).set(room_data)
     return jsonify({"room_code": room_code})
 
 # Join a room
